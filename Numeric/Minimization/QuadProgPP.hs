@@ -17,10 +17,24 @@ import Foreign.Ptr
 import Foreign.Storable
 import System.IO.Unsafe (unsafePerformIO)
 
+-- | Solve a strictly convex quadratic program with optional linear
+-- constraints. It returns a pair of the optimal solution and the
+-- value of the objective function at that point. On error it returns
+-- Left.
 solveQuadProg
     :: (Matrix Double, Vector Double)
+        -- ^ The function to minimize. It should be of the form
+        -- @(A, B)@, which represents a quadratic function
+        -- @x -> (1/2)x'Ax + x'B@ where t' denotes the transpose
+        -- of t. @A@ must be positive definite.
     -> Maybe (Matrix Double, Vector Double)
+        -- ^ Optional equality constraints. When given, this
+        -- argument should be of the form @Just (C, D)@, which
+        -- represents a linear equality @x -> x'C + D = 0@.
     -> Maybe (Matrix Double, Vector Double)
+        -- ^ Optional inequality constraints. When given, this
+        -- argument should be of the form @Just (E, F)@, which
+        -- represents linear inequalities @x -> x'E + F >= 0@.
     -> Either String (Vector Double, Double)
 solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
         = unsafePerformIO $

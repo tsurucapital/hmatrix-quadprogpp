@@ -4,7 +4,9 @@
 name:                hmatrix-quadprogxx
 version:             0.1.0.0
 synopsis:            Bindings to QuadProg++
--- description:         
+description:
+  Bindings to QuadProg++, a C++ library for quadratic programming.
+  <http://sourceforge.net/projects/quadprog/>
 license:             BSD3
 license-file:        LICENSE
 author:              Alex Lang, Takano Akio
