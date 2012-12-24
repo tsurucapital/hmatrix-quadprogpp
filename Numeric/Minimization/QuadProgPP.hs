@@ -9,16 +9,19 @@ import Data.Maybe
 import Data.Packed
 import Data.Packed.Development
 import qualified Data.Vector.Storable as VS
+import Foreign.C.String
 import Foreign.C.Types (CInt(..))
 import Foreign.ForeignPtr
+import Foreign.Marshal.Alloc
 import Foreign.Ptr
+import Foreign.Storable
 import System.IO.Unsafe (unsafePerformIO)
 
 solveQuadProg
     :: (Matrix Double, Vector Double)
     -> Maybe (Matrix Double, Vector Double)
     -> Maybe (Matrix Double, Vector Double)
-    -> (Vector Double, Double)
+    -> Either String (Vector Double, Double)
 solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
         = unsafePerformIO $
     mat' (Just g) $ \gRow gCol gPtr ->
@@ -27,7 +30,7 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
     vec' ce0 $ \ce0Size ce0Ptr ->
     mat' (trans <$> ci) $ \ciRow ciCol ciPtr ->
     vec' ci0 $ \ci0Size ci0Ptr ->
-    fromMaybe sizeMismatchError $ do
+    fromMaybe (return $ Left sizeMismatchError) $ do
         let !nVar = gRow
         guard $ gCol == nVar
         guard $ g0Size == nVar
@@ -37,7 +40,7 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
         guard $ ciRow == nVar || ciRow == 0
         let !nCI = ciCol
         guard $ ci0Size == nCI
-        return $ do
+        return $ alloca $ \ptrErrorStr -> do
             fpSolution <- mallocForeignPtrArray (fromIntegral nVar)
             best <- withForeignPtr fpSolution $ \ptrSolution ->
                 c_hs_solve_quadprog nVar nCE nCI
@@ -45,15 +48,23 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
                     cePtr ce0Ptr
                     ciPtr ci0Ptr
                     ptrSolution
-            let !solutionVec = VS.unsafeFromForeignPtr0 fpSolution
-                    (fromIntegral nVar)
-            return (solutionVec, best)
+                    ptrErrorStr
+            errorCStr <- peek ptrErrorStr
+            if errorCStr == nullPtr -- success
+                then let
+                    !solutionVec = VS.unsafeFromForeignPtr0 fpSolution
+                        (fromIntegral nVar)
+                    in return $ Right (solutionVec, best)
+                else do
+                    errorStr <- peekCAString errorCStr
+                    free errorCStr
+                    return $ Left errorStr
     where
         mat' (Just m) f = mat (cmat m) $ \church -> church $ \nrow ncol ptr -> f nrow ncol ptr
         mat' Nothing f = f 0 0 nullPtr
         vec' (Just v) f = vec v $ \church -> church $ \size ptr -> f size ptr
         vec' Nothing f = f 0 nullPtr
-        sizeMismatchError = error
+        sizeMismatchError =
             "Numeric.Minimization.QuadProgPP.solveQuadProg: size mismatch"
 
 split :: Maybe (a, b) -> (Maybe a, Maybe b)
@@ -69,4 +80,5 @@ foreign import ccall "hs_solve_quadprog"
         -> Ptr Double
         -> Ptr Double
         -> Ptr Double
+        -> Ptr CString
         -> IO Double

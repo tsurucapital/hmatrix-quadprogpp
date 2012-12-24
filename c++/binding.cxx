@@ -1,4 +1,6 @@
 # include <QuadProg++.hh>
+# include <exception>
+# include <string.h>
 
 extern "C" double hs_solve_quadprog(
   int n_vars, int n_ce, int n_ci,
@@ -8,7 +10,8 @@ extern "C" double hs_solve_quadprog(
   const double *ce0_,
   const double *CI_,
   const double *ci0_,
-  double *x_)
+  double *x_,
+  const char **p_errorstr) try
 {
   using namespace QuadProgPP;
   Matrix<double> G(G_, n_vars, n_vars);
@@ -21,5 +24,12 @@ extern "C" double hs_solve_quadprog(
   double r = solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
   for(int i = 0; i < n_vars; i++)
     x_[i] = x[i];
+  *p_errorstr = 0;
   return r;
+} catch(const std::exception &e) {
+  *p_errorstr = strdup(e.what());
+  return 0;
+} catch(...) {
+  *p_errorstr = strdup("unknown C++ error");
+  return 0;
 }
