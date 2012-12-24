@@ -1,4 +1,4 @@
-bindings-quadprogxx
+hmatrix-quadprogpp
 ===================
 
 bindings to quadprog++
