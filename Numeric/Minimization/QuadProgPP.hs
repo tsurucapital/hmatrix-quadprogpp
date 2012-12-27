@@ -1,7 +1,10 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Numeric.Minimization.QuadProgPP (solveQuadProg) where
+module Numeric.Minimization.QuadProgPP
+    ( solveQuadProg
+    , QuadProgPPError(..)
+    ) where
 
 import Control.Applicative
 import Control.Monad
@@ -16,6 +19,18 @@ import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
 import System.IO.Unsafe (unsafePerformIO)
+
+-- | Errors that can happen in 'solveQuadProg'.
+data QuadProgPPError
+    = QuadProgInfeasible
+        -- ^ The problem has no feasible solution.
+    | QuadProgSizeMismatch
+        -- ^ The given matrices and vectors have inconsistent
+        -- dimensionalities.
+    | QuadProgOtherError String
+        -- ^ Other errors. Currently this is used for C++ exceptions
+        -- thrown by QuadProg++.
+    deriving (Show, Eq)
 
 -- | Solve a strictly convex quadratic program with optional linear
 -- constraints. It returns a pair of the optimal solution and the
@@ -35,7 +50,7 @@ solveQuadProg
         -- ^ Optional inequality constraints. When given, this
         -- argument should be of the form @Just (E, F)@, which
         -- represents linear inequalities @x -> x'E + F >= 0@.
-    -> Either String (Vector Double, Double)
+    -> Either QuadProgPPError (Vector Double, Double)
 solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
         = unsafePerformIO $
     mat' (Just g) $ \gRow gCol gPtr ->
@@ -44,7 +59,7 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
     vec' ce0 $ \ce0Size ce0Ptr ->
     mat' (trans <$> ci) $ \ciRow ciCol ciPtr ->
     vec' ci0 $ \ci0Size ci0Ptr ->
-    fromMaybe (return $ Left sizeMismatchError) $ do
+    fromMaybe (return $ Left QuadProgSizeMismatch) $ do
         let !nVar = gRow
         guard $ gCol == nVar
         guard $ g0Size == nVar
@@ -64,15 +79,16 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
                     ptrSolution
                     ptrErrorStr
             errorCStr <- peek ptrErrorStr
-            if errorCStr == nullPtr -- success
-                then let
-                    !solutionVec = VS.unsafeFromForeignPtr0 fpSolution
-                        (fromIntegral nVar)
-                    in return $ Right (solutionVec, best)
-                else do
-                    errorStr <- peekCAString errorCStr
-                    free errorCStr
-                    return $ Left errorStr
+            case () of
+                _   | errorCStr /= nullPtr -> do -- exception
+                        errorStr <- peekCAString errorCStr
+                        free errorCStr
+                        return $ Left $ QuadProgOtherError errorStr
+                    | best == (1/0) -> return $ Left QuadProgInfeasible
+                    | otherwise -> let
+                        !solutionVec = VS.unsafeFromForeignPtr0 fpSolution
+                            (fromIntegral nVar)
+                        in return $ Right (solutionVec, best)
     where
         mat' (Just m) f = mat (cmat m) $ \church -> church $ \nrow ncol ptr -> f nrow ncol ptr
         mat' Nothing f = f 0 0 nullPtr
