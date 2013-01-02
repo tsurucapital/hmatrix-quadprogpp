@@ -94,8 +94,6 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
         mat' Nothing f = f 0 0 nullPtr
         vec' (Just v) f = vec v $ \church -> church $ \size ptr -> f size ptr
         vec' Nothing f = f 0 nullPtr
-        sizeMismatchError =
-            "Numeric.Minimization.QuadProgPP.solveQuadProg: size mismatch"
 
 split :: Maybe (a, b) -> (Maybe a, Maybe b)
 split x = (fst <$> x, snd <$> x)
