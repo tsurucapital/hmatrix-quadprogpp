@@ -9,8 +9,6 @@ module Numeric.Minimization.QuadProgPP
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
-import Data.Packed
-import Data.Packed.Development
 import qualified Data.Vector.Storable as VS
 import Foreign.C.String
 import Foreign.C.Types (CInt(..))
@@ -18,7 +16,10 @@ import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
+import Numeric.LinearAlgebra.Data
+import Numeric.LinearAlgebra.Devel
 import System.IO.Unsafe (unsafePerformIO)
+import Prelude
 
 -- | Errors that can happen in 'solveQuadProg'.
 data QuadProgPPError
@@ -55,9 +56,9 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
         = unsafePerformIO $
     mat' (Just g) $ \gRow gCol gPtr ->
     vec' (Just g0) $ \g0Size g0Ptr ->
-    mat' (trans <$> ce) $ \ceRow ceCol cePtr ->
+    mat' (tr <$> ce) $ \ceRow ceCol cePtr ->
     vec' ce0 $ \ce0Size ce0Ptr ->
-    mat' (trans <$> ci) $ \ciRow ciCol ciPtr ->
+    mat' (tr <$> ci) $ \ciRow ciCol ciPtr ->
     vec' ci0 $ \ci0Size ci0Ptr ->
     fromMaybe (return $ Left QuadProgSizeMismatch) $ do
         let !nVar = gRow
@@ -90,9 +91,9 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
                             (fromIntegral nVar)
                         in return $ Right (solutionVec, best)
     where
-        mat' (Just m) f = mat (cmat m) $ \church -> church $ \nrow ncol ptr -> f nrow ncol ptr
+        mat' (Just m) f = appMatrixLen f m
         mat' Nothing f = f 0 0 nullPtr
-        vec' (Just v) f = vec v $ \church -> church $ \size ptr -> f size ptr
+        vec' (Just v) f = appVectorLen f v
         vec' Nothing f = f 0 nullPtr
 
 split :: Maybe (a, b) -> (Maybe a, Maybe b)
