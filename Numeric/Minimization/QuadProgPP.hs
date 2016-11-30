@@ -17,7 +17,6 @@ import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
 import Numeric.LinearAlgebra.Data
-import Numeric.LinearAlgebra.Devel
 import System.IO.Unsafe (unsafePerformIO)
 import Prelude
 
@@ -91,9 +90,11 @@ solveQuadProg (g, g0) (split -> (ce, ce0)) (split -> (ci, ci0))
                             (fromIntegral nVar)
                         in return $ Right (solutionVec, best)
     where
-        mat' (Just m) f = appMatrixLen f m
+        mat' (Just m) f = VS.unsafeWith (flatten m) $ \ptr ->
+            f (fromIntegral $ rows m) (fromIntegral $ cols m) ptr
         mat' Nothing f = f 0 0 nullPtr
-        vec' (Just v) f = appVectorLen f v
+        vec' (Just v) f = VS.unsafeWith v $ \ptr ->
+            f (fromIntegral $ VS.length v) ptr
         vec' Nothing f = f 0 nullPtr
 
 split :: Maybe (a, b) -> (Maybe a, Maybe b)
