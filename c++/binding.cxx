@@ -1,4 +1,4 @@
-# include <QuadProg++.hh>
+# include <QuadProg++/QuadProg++.hh>
 # include <exception>
 # include <string.h>
 
