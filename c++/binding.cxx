@@ -2,6 +2,14 @@
 # include <exception>
 # include <string.h>
 
+/* These namespaces may or may not be defined, depending on the version of
+ * QuadProg++. Here we make sure the are all defined, so that we can be `using`
+ * them later.
+ */
+
+namespace QuadProgPP{}
+namespace quadprogpp{}
+
 extern "C" double hs_solve_quadprog(
   int n_vars, int n_ce, int n_ci,
   const double *G_,
@@ -13,7 +21,11 @@ extern "C" double hs_solve_quadprog(
   double *x_,
   const char **p_errorstr) try
 {
+  /* Depending on the version, the names may be in the global namespace, the
+   * QuadProgPP namespace or the quadprogpp namespace.
+   */
   using namespace QuadProgPP;
+  using namespace quadprogpp;
   Matrix<double> G(G_, n_vars, n_vars);
   Vector<double> g0(g0_, n_vars);
   Matrix<double> CE(CE_, n_vars, n_ce);
