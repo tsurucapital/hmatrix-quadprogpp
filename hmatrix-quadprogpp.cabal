@@ -6,7 +6,7 @@ version:             0.3.0.1
 synopsis:            Bindings to the QuadProg++ quadratic programming library
 description:
   Bindings to QuadProg++, a C++ library for quadratic programming.
-  <http://sourceforge.net/projects/quadprog/>
+  <https://github.com/liuq/QuadProgpp>
 license:             BSD3
 license-file:        LICENSE
 author:              Alex Lang, Takano Akio
