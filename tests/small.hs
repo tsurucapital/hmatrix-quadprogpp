@@ -1,4 +1,3 @@
-{-# LANGUAGE ImplicitParams #-}
 import Control.Monad
 import qualified Data.Vector.Storable as VS
 import Numeric.LinearAlgebra
@@ -6,7 +5,7 @@ import Numeric.LinearAlgebra
 import Numeric.Minimization.QuadProgPP ( solveQuadProg )
 import Test.Tasty ( defaultMain, testGroup, TestTree )
 import Test.Tasty.HUnit ( testCase, assertEqual, assertFailure )
-import Test.HUnit.Approx ( (@~?) )
+import Test.HUnit.Approx ( assertApproxEqual )
 import Debug.Trace
 import Numeric.LinearAlgebra.HMatrix (tr)
 
@@ -15,9 +14,9 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "small"
-    -- [ problem0
-    [ problem1
-    -- , problemQuadprogppDemo
+    [ problem0
+    , problem1
+    , problemQuadprogppDemo
     ]
 
 -- Problem 0
@@ -45,12 +44,11 @@ problem0 = testCase "Problem 0" $ do
     (actual, best) <- case answer of
         Left err -> assertFailure $ show err
         Right x -> return x
-    let ?epsilon = 1e-12
     let expected = VS.fromList [2/9, 8/9] :: VS.Vector Double
     assertEqual "The answer should have the expected length"
         (VS.length expected)
         (VS.length actual)
-    VS.zipWithM_ (@~?) (traceShowId expected) (traceShowId actual)
+    VS.zipWithM_ (assertApproxEqual "" 1e-12) (traceShowId expected) (traceShowId actual)
 
 
 -- Problem 1
@@ -91,8 +89,9 @@ problem1 = testCase "Problem 1" $ do
     assertEqual "The answer should have the expected length"
         (traceShowId $ VS.length expected)
         (traceShowId $ VS.length actual)
-    let ?epsilon = 1e-5
-    VS.zipWithM_ (@~?) (traceShowId expected) (traceShowId actual)
+    VS.zipWithM_ (assertApproxEqual "" 1e-5)
+        (traceShowId expected)
+        (traceShowId actual)
 
 problemQuadprogppDemo :: TestTree
 problemQuadprogppDemo = testCase "Problem quadpropp demo" $ do
@@ -118,10 +117,12 @@ problemQuadprogppDemo = testCase "Problem quadpropp demo" $ do
     (actual, best) <- case answer of
         Left err -> assertFailure $ show err
         Right x -> return x
-    let ?epsilon = 1e-5
-    12 @~? best
+    let epsilon = 1e-5
+    assertApproxEqual "best" epsilon 12 best
     let expected = VS.fromList [1, 2] :: VS.Vector Double
     assertEqual "The answer should have the expected length"
         (traceShowId $ VS.length expected)
         (traceShowId $ VS.length actual)
-    VS.zipWithM_ (@~?) (traceShowId expected) (traceShowId actual)
+    VS.zipWithM_ (assertApproxEqual "" epsilon)
+        (traceShowId expected)
+        (traceShowId actual)
